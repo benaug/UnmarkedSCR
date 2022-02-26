@@ -43,7 +43,7 @@ init.data.USCR=function(data=NA,M=NA,inits=inits,obstype="poisson"){
   z=rbinom(M,1,psi)
   D=e2dist(s, X)
   
-  if(obstype=="poisson"){
+  if(obstype%in%c("poisson","negbin")){
     lam0<- inits$lam0
     lamd<- lam0*exp(-D*D/(2*sigma*sigma))
     #Build y.true
@@ -95,6 +95,16 @@ init.data.USCR=function(data=NA,M=NA,inits=inits,obstype="poisson"){
     lam0<- inits$lam0
     lamd<- lam0*exp(-D*D/(2*sigma*sigma))
     ll.y=dpois(y.true2D,K*lamd*z,log=TRUE)
+  }else if(obstype=="negbin"){
+    lam0<- inits$lam0
+    theta<- inits$theta
+    lamd<- lam0*exp(-D*D/(2*sigma*sigma))
+    ll.y=y.true2D*0
+    for(i in 1:M){
+      if(z[i]==1){
+        ll.y[i,]=dnbinom(y.true2D[i,],mu=lamd[i,],size=theta*K,log=TRUE)
+      }
+    }
   }
   if(!is.finite(sum(ll.y)))stop("Starting obs model likelihood is not finite")
   

@@ -4,7 +4,7 @@ e2dist = function (x, y){
   matrix(dvec, nrow = nrow(x), ncol = nrow(y), byrow = F)
 }
 simUSCR <-
-  function(N=120,lam0=NA,p0=NA,sigma=0.50,theta.d=NA,K=10,X=X,buff=3,obstype="poisson"){
+  function(N=120,lam0=NA,p0=NA,sigma=0.50,theta=NA,K=10,X=X,buff=3,obstype="poisson"){
     # simulate a population of activity centers
     s<- cbind(runif(N, min(X[,1])-buff,max(X[,1])+buff), runif(N,min(X[,2])-buff,max(X[,2])+buff))
     D<- e2dist(s,X)
@@ -34,12 +34,12 @@ simUSCR <-
       } 
     }else if(obstype=="negbin"){
       lamd<- lam0*exp(-D*D/(2*sigma*sigma))
-      if(is.na(lam0))stop("must provide lam0 for poisson obstype")
-      if(is.na(theta.d))stop("Must provide theta.d for negbin obstype")
+      if(is.na(lam0))stop("must provide lam0 for negbin obstype")
+      if(is.na(theta))stop("Must provide theta for negbin obstype")
       for(i in 1:N){
         for(j in 1:J){
           for(k in 1:K){
-            y[i,j,k]=rnbinom(1,mu=lamd[i,j],size=theta.d)
+            y[i,j,k]=rnbinom(1,mu=lamd[i,j],size=theta)
           }
         }
       } 
