@@ -4,7 +4,8 @@ e2dist = function (x, y){
   matrix(dvec, nrow = nrow(x), ncol = nrow(y), byrow = F)
 }
 simUSCR <-
-  function(N=120,lam0=NA,p0=NA,sigma=0.50,theta=NA,K=10,X=X,buff=3,obstype="poisson"){
+  function(N=120,lam0=NA,p0=NA,sigma=0.50,theta=NA,lambda=NA,
+           K=10,X=X,buff=3,obstype="poisson"){
     # simulate a population of activity centers
     s<- cbind(runif(N, min(X[,1])-buff,max(X[,1])+buff), runif(N,min(X[,2])-buff,max(X[,2])+buff))
     D<- e2dist(s,X)
@@ -43,6 +44,22 @@ simUSCR <-
           }
         }
       } 
+    }else if(obstype=="siteUseZTPois"){
+      if(is.na(p0))stop("must provide p0 for siteUse_ZTpois obstype")
+      if(is.na(lambda))stop("must provide lambda for siteUse_ZTpois obstype")
+      library(VGAM)
+      pd<- p0*exp(-D*D/(2*sigma*sigma))
+      y.det=array(0,dim=c(N,J,K))
+      for(i in 1:N){
+        for(j in 1:J){
+          for(k in 1:K){
+            y.det[i,j,k]=rbinom(1,1,pd[i,j])
+            if(y.det[i,j,k]==1){
+              y[i,j,k]=rzapois(1,lambda,pobs0=0)
+            }
+          }
+        }
+      }
     }else{
       stop("obstype not recognized")
     }

@@ -20,23 +20,6 @@ init.data.USCR=function(data=NA,M=NA,inits=inits,obstype="poisson"){
   
   psi <- inits$psi
   sigma <- inits$sigma
-  #If bernoulli data, add constraints that prevent y.true[i,j,k]>1
-  constraints=matrix(1,nrow=n.samples,ncol=n.samples)
-  if(obstype=="bernoulli"){
-    # idx=which(y.obs>0,arr.ind=TRUE)
-    for(i in 1:n.samples){
-      for(j in 1:n.samples){
-        if(i!=j){
-          # if(all(idx[i,2:3]==idx[j,2:3])){
-          if(!(this.j[i]==this.j[j]&this.k[i]==this.k[j])){
-            constraints[i,j]=0 #can't combine samples from same trap and occasion in binomial model
-            constraints[j,i]=0
-          }
-        }
-      }
-    }
-  }
-  
   
   #assign random activity centers
   s<- cbind(runif(M,xlim[1],xlim[2]), runif(M,ylim[1],ylim[2]))
@@ -55,7 +38,7 @@ init.data.USCR=function(data=NA,M=NA,inits=inits,obstype="poisson"){
       ID[l]=sample(1:M,1,replace=FALSE,prob=propdist)
       y.true[ID[l],this.j[l],this.k[l]]=y.true[ID[l],this.j[l],this.k[l]]+1
     }
-  }else{
+  }else if(obstype=="bernoulli"){
     p0<- inits$p0
     pd<- p0*exp(-D*D/(2*sigma*sigma))
     #Build y.true
@@ -68,9 +51,18 @@ init.data.USCR=function(data=NA,M=NA,inits=inits,obstype="poisson"){
       ID[l]=sample(1:M,1,replace=FALSE,prob=propdist)
       y.true[ID[l],this.j[l],this.k[l]]=y.true[ID[l],this.j[l],this.k[l]]+1
     }
+  }else if(obstype=="siteUseZTPois"){
+    p0<- inits$p0
+    pd<- p0*exp(-D*D/(2*sigma*sigma))
+    y.true=array(0,dim=c(M,J,K))
+    ID=rep(NA,n.samples)
+    for(l in 1:n.samples){
+      propdist=z*pd[,this.j[l]]
+      propdist=propdist/sum(propdist)
+      ID[l]=sample(1:M,1,replace=FALSE,prob=propdist)
+      y.true[ID[l],this.j[l],this.k[l]]=y.true[ID[l],this.j[l],this.k[l]]+1
+    }
   }
-  
-  
     
   y.true2D=apply(y.true,c(1,2),sum)
     
@@ -105,9 +97,29 @@ init.data.USCR=function(data=NA,M=NA,inits=inits,obstype="poisson"){
         ll.y[i,]=dnbinom(y.true2D[i,],mu=lamd[i,],size=theta*K,log=TRUE)
       }
     }
+  }else if(obstype=="siteUseZTPois"){
+    p0<- inits$p0
+    lambda<- inits$lambda
+    pd<- p0*exp(-D*D/(2*sigma*sigma))
+    ll.y=y.true*0
+    for(i in 1:M){
+      if(z[i]==1){
+        for(j in 1:J){
+          for(k in 1:K){
+            if(y.true[i,j,k]==0){
+              ll.y[i,j,k]=log(1-pd[j])
+            }else{
+              ll.y[i,j,k]=log(pd[j]) + log(dpois(y.true[i,j,k],lambda=lambda)/(1-exp(-lambda)))
+            }
+          }
+        }
+      }
+    }
+  }else{
+    stop("obstype not recognized")
   }
   if(!is.finite(sum(ll.y)))stop("Starting obs model likelihood is not finite")
   
   return(list(y.true2D=y.true2D,y.true3D=y.true,s=s,z=z,
-              ID=ID,n.samples=n.samples,xlim=xlim,ylim=ylim))
+                ID=ID,n.samples=n.samples,xlim=xlim,ylim=ylim))
 }
