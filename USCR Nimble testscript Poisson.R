@@ -100,10 +100,10 @@ for(i in 1:M){
 
 
 
-# #use block update for lam0 and sigma. bc correlated posteriors.
-# conf$removeSampler(c("lam0","sigma"))
-# conf$addSampler(target = c(paste("lam0"),paste("sigma")),
-#                 type = 'AF_slice',control = list(adaptive=TRUE),silent = TRUE)
+#use block update for lam0 and sigma. bc correlated posteriors.
+conf$removeSampler(c("lam0","sigma"))
+conf$addSampler(target = c(paste("lam0"),paste("sigma")),
+                type = 'AF_slice',control = list(adaptive=TRUE),silent = TRUE)
 
 
 # Build and compile
