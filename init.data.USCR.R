@@ -51,7 +51,7 @@ init.data.USCR=function(data=NA,M=NA,inits=inits,obstype="poisson"){
       ID[l]=sample(1:M,1,replace=FALSE,prob=propdist)
       y.true[ID[l],this.j[l],this.k[l]]=y.true[ID[l],this.j[l],this.k[l]]+1
     }
-  }else if(obstype=="siteUseZTPois"){
+  }else if(obstype=="hurdleZTPois"){
     p0<- inits$p0
     pd<- p0*exp(-D*D/(2*sigma*sigma))
     y.true=array(0,dim=c(M,J,K))
@@ -97,7 +97,7 @@ init.data.USCR=function(data=NA,M=NA,inits=inits,obstype="poisson"){
         ll.y[i,]=dnbinom(y.true2D[i,],mu=lamd[i,],size=theta*K,log=TRUE)
       }
     }
-  }else if(obstype=="siteUseZTPois"){
+  }else if(obstype=="hurdleZTPois"){
     p0<- inits$p0
     lambda<- inits$lambda
     pd<- p0*exp(-D*D/(2*sigma*sigma))

@@ -34,9 +34,9 @@ simUSCR <-
         }
       } 
     }else if(obstype=="negbin"){
-      lamd<- lam0*exp(-D*D/(2*sigma*sigma))
       if(is.na(lam0))stop("must provide lam0 for negbin obstype")
       if(is.na(theta))stop("Must provide theta for negbin obstype")
+      lamd<- lam0*exp(-D*D/(2*sigma*sigma))
       for(i in 1:N){
         for(j in 1:J){
           for(k in 1:K){
@@ -44,7 +44,7 @@ simUSCR <-
           }
         }
       } 
-    }else if(obstype=="siteUseZTPois"){
+    }else if(obstype=="hurdleZTPois"){
       if(is.na(p0))stop("must provide p0 for siteUse_ZTpois obstype")
       if(is.na(lambda))stop("must provide lambda for siteUse_ZTpois obstype")
       library(VGAM)

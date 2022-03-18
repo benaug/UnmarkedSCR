@@ -14,7 +14,7 @@ GetDetectionProb <- nimbleFunction(
   }
 )
 
-dSiteUseZTPoisVector <- nimbleFunction(
+dHurdleZTPoisVector <- nimbleFunction(
   run = function(x = double(2), pd = double(1),K2D = double(2), z = double(0), lambda = double(0),
                  log = integer(0)) {
     returnType(double(0))
@@ -45,7 +45,7 @@ dSiteUseZTPoisVector <- nimbleFunction(
 )
 
 #make dummy random vector generator to make nimble happy
-rSiteUseZTPoisVector <- nimbleFunction(
+rHurdleZTPoisVector <- nimbleFunction(
   run = function(n = integer(0), pd = double(1),K2D = double(2), z = double(0), lambda = double(0)) {
     returnType(double(2))
     J=nimDim(pd)[1]

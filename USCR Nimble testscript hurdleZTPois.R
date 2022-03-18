@@ -33,8 +33,8 @@ library(nimble)
 library(coda)
 source("simUSCR.R")
 source("init.data.USCR.R")
-source("NimbleModel USCR siteUseZTPois.R")
-source("NimbleFunctions USCR siteUseZTPois.R")
+source("NimbleModel USCR hurdleZTPois.R")
+source("NimbleFunctions USCR hurdleZTPois.R")
 source("sSampler.R")
 
 #make sure to run this line!
@@ -49,7 +49,7 @@ sigma=0.50
 K=10
 buff=3 #state space buffer. Should be at least 3 sigma.
 X<- expand.grid(3:11,3:11)
-obstype="siteUseZTPois"
+obstype="hurdleZTPois"
 
 #Simulate some data
 data=simUSCR(N=N,p0=p0,lambda=lambda,sigma=sigma,K=K,X=X,buff=buff,obstype=obstype)
@@ -66,8 +66,8 @@ M=200
 J=nrow(X)
 K2D=matrix(1,J,K) #2 dimensional. Must be either 0 or 1.
 
-inits=list(p0=0.05,lambda=1,sigma=0.75,psi=0.5)#initial values for lam0, sigma, and psi to build data
-nimbuild=init.data.USCR(data=data,M=M,inits=inits,obstype="siteUseZTPois")
+inits=list(p0=0.05,lambda=1,sigma=0.75,psi=0.5)#initial values for p0, sigma, and psi to build data
+nimbuild=init.data.USCR(data=data,M=M,inits=inits,obstype="hurdleZTPois")
 
 #inits for nimble - using 3D data here
 Niminits <- list(z=nimbuild$z,s=nimbuild$s,ID=nimbuild$ID,capcounts=rowSums(nimbuild$y.true3D),
@@ -136,9 +136,9 @@ for(i in 1:M){
 
 
 
-#use block update for lam0 and sigma. bc correlated posteriors.
-conf$removeSampler(c("lam0","sigma"))
-conf$addSampler(target = c(paste("lam0"),paste("sigma")),
+#use block update for p0 and sigma. bc correlated posteriors.
+conf$removeSampler(c("p0","sigma"))
+conf$addSampler(target = c(paste("p0"),paste("sigma")),
                 type = 'AF_slice',control = list(adaptive=TRUE),silent = TRUE)
 
 
@@ -152,7 +152,7 @@ Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
 
 # Run the model.
 start.time2<-Sys.time()
-Cmcmc$run(10000,reset=FALSE) #short run for demonstration. can keep running this line to get more samples
+Cmcmc$run(1000,reset=FALSE) #short run for demonstration. can keep running this line to get more samples
 end.time<-Sys.time()
 end.time-start.time  # total time for compilation, replacing samplers, and fitting
 end.time-start.time2 # post-compilation run time
