@@ -1,3 +1,12 @@
+#This MCMC sampler has an optional joint z-ID update. See comments below for how to use it.
+#The algorithm is this: 
+#1. select a focal individual with z=0, propose to turn z on
+#2a. identify all traps with samples within a 6sigma (you can set multiplier) radius of the focal individual
+#2b. OR to be safe, just identify all traps with samples
+#3. repropose the IDs for all the samples at these traps
+#4. accept/reject the proposed z and IDs jointly in MH step.
+#5. Do the same thing in reverse selecting a z=1 ind to turn off.
+
 library(nimble)
 library(coda)
 source("simUSCR.R")
@@ -14,7 +23,7 @@ nimbleOptions('MCMCjointlySamplePredictiveBranches')
 N=38
 lam0=0.25
 sigma=0.50
-K=5
+K=10
 buff=3 #state space buffer. Should be at least 3 sigma.
 X<- expand.grid(3:11,3:11)
 obstype="poisson"
@@ -71,10 +80,27 @@ conf <- configureMCMC(Rmodel,monitors=parameters, thin=nt, monitors2=parameters2
 
 ##Here, we remove the default sampler for y.true
 #and replace it with the custom "IDSampler".
+
+#Some notes on the joint z-ID update. First, you may not need it. It slows down computation.
+#But mixing will be improved substantially in certain situations, particularly when overall detection 
+#probability is high. 
+#"cluster.ups" controls how many joint z-ID updates to do per iteration.
+#So cluster.ups=0 does the default algorithm. (1 z addition proposal and 1 z subtraction proposal).
+#Perhaps just cluster.ups=1 is a good compromise between computation speed and mixing for data sets that benefit from it.
+#"local.eval" determines if we only consider the local traps during the update. This makes the update faster.
+#If local.eval=TRUE, "swap.rad.multiplier" determines the local neighborhood of traps around the 
+#focal z to consider. The traps considered are a function of sigma, a radius of 
+#sigma*swap.rad.multiplier of the focal z. If you set "swap.rad.multipler" too low, the 
+#proposal may no longer be reversible and will not work correctly. To be safe, set local.eval=FALSE.
+#Otherwise, 6 seems to work fine in almost all cases (sometimes can fail for very sparse data sets).
+
 conf$removeSampler("y.true")
 trapup=unique(data$this.j)
+j.indicator=1:J%in%data$this.j
 conf$addSampler(target = paste0("y.true[1:",M,",1:",J,"]"),
-                type = 'IDSampler',control = list(M=M,J=J,this.j=data$this.j,trapup=trapup),
+                type = 'IDSampler',control = list(M=M,J=J,this.j=data$this.j,trapup=trapup,
+                                                  j.indicator=j.indicator,
+                                                  cluster.ups=0,local.eval=FALSE,swap.rad.multiplier=6),
                 silent = TRUE)
 
 
@@ -97,9 +123,6 @@ for(i in 1:M){
   #scale parameter here is just the starting scale. It will be tuned.
 }
 
-
-
-
 #use block update for lam0 and sigma. bc correlated posteriors.
 conf$removeSampler(c("lam0","sigma"))
 conf$addSampler(target = c(paste("lam0"),paste("sigma")),
@@ -116,7 +139,7 @@ Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
 
 # Run the model.
 start.time2<-Sys.time()
-Cmcmc$run(15000,reset=FALSE) #short run for demonstration. can keep running this line to get more samples
+Cmcmc$run(25000,reset=FALSE) #short run for demonstration. can keep running this line to get more samples
 end.time<-Sys.time()
 end.time-start.time  # total time for compilation, replacing samplers, and fitting
 end.time-start.time2 # post-compilation run time

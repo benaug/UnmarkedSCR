@@ -14,7 +14,7 @@ nimbleOptions('MCMCjointlySamplePredictiveBranches')
 N=38
 p0=0.25 #simulator treats p0 as lam0 for bernoulli obsmod
 sigma=0.50
-K=5
+K=10
 buff=3 #state space buffer. Should be at least 3 sigma.
 X<- expand.grid(3:11,3:11)
 obstype="bernoulli"
