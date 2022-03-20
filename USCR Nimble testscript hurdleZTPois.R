@@ -1,4 +1,4 @@
-#This script uses a "site use - zero-truncated Poisson observation model"
+#This script uses a hurdle zero-truncated Poisson observation model
 #This is a model where 1) detection is a function of distance from activity center
 #and 2) given detection, counts follow a zero-truncated Poisson with a fixed lambda
 #parameter that is not a function of distance from the activity center.
@@ -6,28 +6,23 @@
 # y.count[i,j,k] ~ ZTPois(lambda*y.det[i,j,k]) (lambda is zeroed out if no detection)
 #To fit the model, we marginalize over y.det.
 
-#This model provides worse estimates than regular USCR. I believe
-#disconnecting the counts from the activity centers and detection probability is one cause of this.
-#Counts > 1 do not inform the activity center locations or detection probability. 
-#Then, adding more counts per detection adds more uncertainty about how many individuals
-#contributed those counts without adding any more information about the detection process.
+#Initial preliminary investigation suggested this model provides worse estimates than regular USCR.
+#Though on further exploration, that was because I was setting lambda large enough that the
+#number of counts given detection was quite large. I get roughly unbiased estimates and 
+#nominal coverage of 95% CIs when lambda=0.25, which is consistent with individuals
+#leaving 1-3 counts (mostly 1) per detection event.
 
-#Because this model sucks more than regular SCR, this test script is set up with an 
-#informative prior for sigma centered around the current simulation value of 0.5.
-#Switch back to an uninformative prior if you want to see how the model performs in that
-#case, or change the informative prior if you change the simulation value or use your
-#own data set.
+#This MCMC sampler has an optional joint z-ID update. See comments below for how to use it.
+#The algorithm is this: 
+#1. select a focal individual with z=0, propose to turn z on
+#2a. identify all traps with samples within a 6sigma (you can set multiplier) radius of the focal individual
+#2b. OR to be safe, just identify all traps with samples
+#3. repropose the IDs for all the samples at these traps
+#4. accept/reject the proposed z and IDs jointly in MH step.
+#5. Do the same thing in reverse selecting a z=1 ind to turn off.
 
-#A note about the MCMC. Unlike the other USCR MCMC samplers, I have chosen to update
-#all samples at a trap-occasion at once instead of one by one. You cannot update just
-#1 ID at a time for this model, particularly with larger lambda values--there will be 
-#convergence problems and the posterior won't be fully explored. An implication of this
-#is that my approach for handling partial IDs that requires updating 1 sample ID at a time
-#won't work. Wah wah.
-
-#I expect this model to also be subject to "trap saturation" where if p0 is large enough, there
-#is no spatial correlation in detections and the model parameters will no longer be identifiable
-#See Ramsey et al. (2015).
+#I suspect this observation model benefits more from the joint z-ID update than the poisson observation model.
+#At least, this will be the case when lambda is larger.
 
 library(nimble)
 library(coda)
@@ -43,7 +38,7 @@ nimbleOptions('MCMCjointlySamplePredictiveBranches')
 
 #simulate some data
 N=38
-p0=0.125 #baseline detection probability
+p0=0.25 #baseline detection probability
 lambda=0.25 #count parameter given detection
 sigma=0.50
 K=10
@@ -103,15 +98,27 @@ conf <- configureMCMC(Rmodel,monitors=parameters, thin=nt, monitors2=parameters2
 
 ##Here, we remove the default sampler for y.true
 #and replace it with the custom "IDSampler".
-# conf$removeSampler("y.true")
-# conf$addSampler(target = paste0("y.true[1:",M,",1:",J,",1:",K,"]"),
-#                 type = 'IDSampler',control = list(M=M,J=J,K=K,this.j=data$this.j,this.k=data$this.k,
-#                                                   n.samples=length(data$this.j)),
-#                 silent = TRUE)
+
+#Some notes on the joint z-ID update. First, you may not need it. It slows down computation.
+#But mixing will be improved substantially in certain situations, particularly when overall detection 
+#probability is high. 
+#"cluster.ups" controls how many joint z-ID updates to do per iteration.
+#So cluster.ups=0 does the default algorithm. (1 z addition proposal and 1 z subtraction proposal).
+#Perhaps just cluster.ups=1 is a good compromise between computation speed and mixing for data sets that benefit from it.
+#"local.eval" determines if we only consider the local traps during the update. This makes the update faster.
+#If local.eval=TRUE, "swap.rad.multiplier" determines the local neighborhood of traps around the 
+#focal z to consider. The traps considered are a function of sigma, a radius of 
+#sigma*swap.rad.multiplier of the focal z. If you set "swap.rad.multipler" too low, the 
+#proposal may no longer be reversible and will not work correctly. To be safe, set local.eval=FALSE.
+#Otherwise, 6 seems to work fine in almost all cases (sometimes can fail for very sparse data sets).
 
 conf$removeSampler("y.true")
+j.indicator=apply(data$y.true,c(2),sum)>0
+jk.indicator=apply(data$y.true,c(2,3),sum)>0
 conf$addSampler(target = paste0("y.true[1:",M,",1:",J,",1:",K,"]"),
-                type = 'IDSampler_jk',control = list(M=M,J=J,K=K,this.j=data$this.j,this.k=data$this.k),
+                type = 'IDSampler_jk',control = list(M=M,J=J,K=K,this.j=data$this.j,this.k=data$this.k,
+                                                     j.indicator=j.indicator,jk.indicator=jk.indicator,
+                                                     K2D=K2D,cluster.ups=1,local.eval=FALSE,swap.rad.multiplier=6),
                 silent = TRUE)
 
 # ###Two *optional* sampler replacements:
@@ -133,14 +140,10 @@ for(i in 1:M){
   #scale parameter here is just the starting scale. It will be tuned.
 }
 
-
-
-
 #use block update for p0 and sigma. bc correlated posteriors.
 conf$removeSampler(c("p0","sigma"))
 conf$addSampler(target = c(paste("p0"),paste("sigma")),
                 type = 'AF_slice',control = list(adaptive=TRUE),silent = TRUE)
-
 
 # Build and compile
 Rmcmc <- buildMCMC(conf)
@@ -148,11 +151,9 @@ Rmcmc <- buildMCMC(conf)
 Cmodel <- compileNimble(Rmodel)
 Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
 
-
-
 # Run the model.
 start.time2<-Sys.time()
-Cmcmc$run(1000,reset=FALSE) #short run for demonstration. can keep running this line to get more samples
+Cmcmc$run(2500,reset=FALSE) #short run for demonstration. can keep running this line to get more samples
 end.time<-Sys.time()
 end.time-start.time  # total time for compilation, replacing samplers, and fitting
 end.time-start.time2 # post-compilation run time

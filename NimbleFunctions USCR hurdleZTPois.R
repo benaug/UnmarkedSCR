@@ -96,7 +96,13 @@ IDSampler_jk <- nimbleFunction(
     M<-control$M
     J <- control$J
     K <- control$K
-    calcNodes <- model$getDependencies(target)
+    j.indicator <- control$j.indicator
+    jk.indicator <- control$jk.indicator
+    K2D <- control$K2D
+    cluster.ups <- control$cluster.ups
+    local.eval <- control$local.eval
+    swap.rad.multiplier <- control$swap.rad.multiplier
+    calcNodes <- model$getDependencies(c("y.true","z"))
   },
   
   run = function() {
@@ -104,18 +110,19 @@ IDSampler_jk <- nimbleFunction(
     y.true <- model$y.true
     ID.curr <- model$ID
     lambda <- model$lambda
-    #precalculate log likelihoods at individual by trap level
+    pd <- model$pd
+    #precalculate log likelihoods at individual by trap by occasion level
     ll.y <- array(0,dim=c(M,J,K))
     for(i in 1:M){
       if(z[i]==1){
         for(j in 1:J){
           for(k in 1:K){
-            if(model$K2D[j,k]==1){
+            if(K2D[j,k]==1){
               if(y.true[i,j,k]==0){
-                ll.y[i,j,k] = log(1-model$pd[i,j])
+                ll.y[i,j,k] = log(1-pd[i,j])
               }else{
                 #breaking into two because nimble "can't do math with arrays of more than 2 dimensions"
-                ll.y[i,j,k] = log(model$pd[i,j])
+                ll.y[i,j,k] = log(pd[i,j])
                 ll.y[i,j,k] = ll.y[i,j,k] + log(dpois(y.true[i,j,k],lambda=lambda[1])/(1-exp(-lambda[1])))
               }
             }
@@ -130,7 +137,7 @@ IDSampler_jk <- nimbleFunction(
     for(j in 1:J){
       if(any(this.j==j)){
         #same proposal distribution for all traps
-        propprobs=model$pd[,j]*z
+        propprobs=pd[,j]*z
         if(sum(propprobs)>0){ #abort if propprobs sum to 0 so we don't divide by 0
           propprobs=propprobs/sum(propprobs)
           for(k in 1:K){
@@ -167,10 +174,10 @@ IDSampler_jk <- nimbleFunction(
               for(i in 1:M){ #can be made more efficient here...
                 if(z[i]>0){
                   if(y.true.cand[i,j,k]==0){
-                    ll.y.cand[i,j,k] = log(1-model$pd[i,j])
+                    ll.y.cand[i,j,k] = log(1-pd[i,j])
                   }else{
                     #breaking into two because nimble "can't do math with arrays of more than 2 dimensions"
-                    ll.y.cand[i,j,k] = log(model$pd[i,j])
+                    ll.y.cand[i,j,k] = log(pd[i,j])
                     ll.y.cand[i,j,k] = ll.y.cand[i,j,k] + log(dpois(y.true.cand[i,j,k],lambda=lambda[1])/(1-exp(-lambda[1])))
                   }
                 }
@@ -195,10 +202,340 @@ IDSampler_jk <- nimbleFunction(
         }
       }
     }
-    
     #put everything back into the model$stuff
     model$y.true <<- y.true
     model$ID <<- ID.curr
+    
+    #Now, we do a joint z-ID update
+    if(cluster.ups>0){ #skip if cluster.ups=0
+      y.true <- model$y.true
+      pd <- model$pd
+      z <- model$z
+      #precalculate log likelihoods at individual by trap by occasion level
+      ll.y <- array(0,dim=c(M,J,K))
+      for(i in 1:M){
+        if(z[i]==1){
+          for(j in 1:J){
+            for(k in 1:K){
+              if(K2D[j,k]==1){
+                if(y.true[i,j,k]==0){
+                  ll.y[i,j,k] = log(1-pd[i,j])
+                }else{
+                  ll.y[i,j,k] = log(pd[i,j])
+                  ll.y[i,j,k] = ll.y[i,j,k] + log(dpois(y.true[i,j,k],lambda=lambda[1])/(1-exp(-lambda[1])))
+                }
+              }
+            }
+          }
+        }
+      }
+      ID.curr2 <- model$ID #can't reuse object with same name but different dimensions, adding "2" to make nimble happy
+      swap.rad=swap.rad.multiplier*model$sigma[1] #radius for traps to update sample IDs around a focal individual
+      for(up in 1:cluster.ups){ #how many times to do this update per iteration?
+        # select z==1 to turn off
+        z.cand=z
+        ID.cand2=ID.curr2
+        y.cand=y.true
+        ll.y.cand=ll.y
+        z.on=which(z==1)
+        n.z.on=length(z.on)
+        if(n.z.on>1){ #Cannot turn off anyone unless there are at least 2 guys on. samples must belong to someone!
+          if(n.z.on>1){
+            pick=rcat(1,rep(1/n.z.on,n.z.on))
+            focal.i=z.on[pick]
+          }else{
+            focal.i=z.on[1]
+          }
+          z.cand[focal.i]=0
+          p.select.z.for=1/n.z.on
+          if(local.eval==TRUE){# find local traps with samples
+            dists=sqrt((model$s[focal.i,1]-model$X[,1])^2+(model$s[focal.i,2]-model$X[,2])^2)
+            focal.traps=which(dists<swap.rad&j.indicator) #j.indicator removes traps with 0 samples
+          }else{
+            focal.traps=which(j.indicator) #j.indicator removes traps with 0 samples
+          }
+          total.log.j.probs.for=0
+          total.log.j.probs.back=0
+          n.focal.traps=length(focal.traps)
+          abort=FALSE #abort if any propprobs so small we get underflow. Would be rejected if there were no underflow.
+          #almost never happens...
+          if(n.focal.traps>0){
+            # repropose all samples at focal.traps
+            for(j in 1:n.focal.traps){
+              propprobs.for=pd[,focal.traps[j]]*z.cand
+              propprobs.back=pd[,focal.traps[j]]*z
+              sum.propprobs.for=sum(propprobs.for)
+              if(sum.propprobs.for==0){
+                abort=TRUE
+              }
+              propprobs.for=propprobs.for/sum.propprobs.for
+              propprobs.back=propprobs.back/sum(propprobs.back)
+              for(k in 1:K){
+                if(jk.indicator[focal.traps[j],k]){ #if samples at this j-k
+                  these.samps=which(this.j==focal.traps[j]&this.k==k)
+                  n.these.samps=length(these.samps)
+                  for(i in 1:M){
+                    y.cand[i,focal.traps[j],k]=0
+                  }
+                  for(l in 1:n.these.samps){
+                    pick = rcat(1,prob=propprobs.for)
+                    ID.cand2[these.samps[l]]=pick
+                    y.cand[ID.cand2[these.samps[l]],focal.traps[j],k]=
+                      y.cand[ID.cand2[these.samps[l]],focal.traps[j],k]+1
+                  }
+                  total.log.j.probs.for=total.log.j.probs.for+dmulti(y.cand[,focal.traps[j],k],n.these.samps,prob=propprobs.for,log=TRUE)
+                  total.log.j.probs.back=total.log.j.probs.back+dmulti(y.true[,focal.traps[j],k],n.these.samps,prob=propprobs.back,log=TRUE)
+                  
+                  #update ll.y.cand - only focal traps with samples here
+                  for(i in 1:M){
+                    if(z.cand[i]==1){
+                      if(K2D[focal.traps[j],k]==1){
+                        if(y.cand[i,focal.traps[j],k]==0){
+                          ll.y.cand[i,focal.traps[j],k] = log(1-pd[i,focal.traps[j]])
+                        }else{
+                          ll.y.cand[i,focal.traps[j],k] = log(pd[i,focal.traps[j]])
+                          ll.y.cand[i,focal.traps[j],k] = ll.y.cand[i,focal.traps[j],k] +
+                            log(dpois(y.cand[i,focal.traps[j],k],lambda=lambda[1])/(1-exp(-lambda[1])))
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            #update ll.y.cand for focal.i
+            for(j in 1:J){
+              for(k in 1:K){
+                ll.y.cand[focal.i,j,k]=0
+              }
+            }
+          }else{#if we only turn off a z and no local samples to reallocate
+            for(j in 1:J){
+              for(k in 1:K){
+                ll.y.cand[focal.i,j,k]=0
+              }
+            }
+          }
+          if(!abort){#if propprobs didn't have underflow
+            ll.z.curr=dbinom(z[focal.i],1,model$psi[1],log=TRUE)
+            ll.z.cand=dbinom(z.cand[focal.i],1,model$psi[1],log=TRUE)
+            
+            z.off=which(z.cand==0)
+            p.select.z.back=1/length(z.off)
+            
+            logforprob=log(p.select.z.for)+total.log.j.probs.for
+            logbackprob=log(p.select.z.back)+total.log.j.probs.back
+            
+            if(n.focal.traps>0){#y likelihood of everyone at focal traps and all traps for focal individual
+              ll.total.curr=ll.z.curr #just summing full y likelihood for ease
+              ll.total.cand=ll.z.cand
+              for(i in 1:M){
+                for(j in 1:J){
+                  for(k in 1:K){
+                    ll.total.curr=ll.total.curr+ll.y[i,j,k]
+                    ll.total.cand=ll.total.cand+ll.y.cand[i,j,k]
+                  }
+                }
+              }
+            }else{#y likelihood for focal ind only, all traps
+              ll.total.curr=ll.z.curr #just summing full y likelihood for ease
+              ll.total.cand=ll.z.cand
+              for(j in 1:J){
+                for(k in 1:K){
+                  ll.total.curr=ll.total.curr+ll.y[focal.i,j,k]
+                  ll.total.cand=ll.total.cand+ll.y.cand[focal.i,j,k]
+                }
+              }
+            }
+            log_MH_ratio=(ll.total.cand+logbackprob)-(ll.total.curr+logforprob)
+            accept <- decide(log_MH_ratio)
+            if(accept){
+              if(n.focal.traps>0){
+                for(i in 1:M){
+                  for(j in 1:n.focal.traps){
+                    for(k in 1:K){
+                      y.true[i,focal.traps[j],k]=y.cand[i,focal.traps[j],k]
+                      ll.y[i,focal.traps[j],k]=ll.y.cand[i,focal.traps[j],k]
+                    }
+                  }
+                }
+                ID.curr2=ID.cand2
+              }
+              for(j in 1:J){
+                for(k in 1:K){
+                  ll.y[focal.i,j,k]=ll.y.cand[focal.i,j,k]
+                }
+              }
+              z[focal.i]=z.cand[focal.i]
+            }
+          }
+        }
+        
+        #select z==0 to turn on
+        z.cand=z
+        ID.cand2=ID.curr2
+        y.cand=y.true
+        ll.y.cand=ll.y
+        z.off=which(z==0)
+        n.z.off=length(z.off)
+        if(n.z.off>0){
+          if(n.z.off>1){
+            pick=rcat(1,rep(1/n.z.off,n.z.off))
+            focal.i=z.off[pick]
+          }else{
+            focal.i=z.off[1]
+          }
+          z.cand[focal.i]=1
+          
+          p.select.z.for=1/length(z.off)
+          #find local traps
+          dists=sqrt((model$s[focal.i,1]-model$X[,1])^2+(model$s[focal.i,2]-model$X[,2])^2)
+          dists=sqrt((model$s[focal.i,1]-model$X[,1])^2+(model$s[focal.i,2]-model$X[,2])^2)
+          if(local.eval==TRUE){# find local traps with samples
+            focal.traps=which(dists<swap.rad&j.indicator) #j.indicator removes traps with 0 samples
+          }else{
+            focal.traps=which(j.indicator) #j.indicator removes traps with 0 samples
+          }
+          #a little tricky here. pd is all 0 if z=0. If I replace here, it will not be there
+          #on the next cluster up because I will extract it from model again. So I can not worry about it.
+          #nimble will fill pd[focal.i,] in when we leave this update due to z dependencies.
+          pd[focal.i,]=model$p0[1]*exp(-dists^2/(2*model$sigma[1]^2))
+          total.log.j.probs.for=0
+          total.log.j.probs.back=0
+          n.focal.traps=length(focal.traps)
+          if(n.focal.traps>0){
+            # repropose all samples at focal.traps
+            for(j in 1:n.focal.traps){
+              propprobs.for=pd[,focal.traps[j]]*z.cand
+              propprobs.back=pd[,focal.traps[j]]*z
+              propprobs.for=propprobs.for/sum(propprobs.for)
+              propprobs.back=propprobs.back/sum(propprobs.back)
+              for(k in 1:K){
+                if(jk.indicator[focal.traps[j],k]){ #if samples at this j-k
+                  these.samps=which(this.j==focal.traps[j]&this.k==k)
+                  n.these.samps=length(these.samps)
+                  for(i in 1:M){
+                    y.cand[i,focal.traps[j],k]=0
+                  }
+                  for(l in 1:n.these.samps){
+                    pick = rcat(1,prob=propprobs.for)
+                    ID.cand2[these.samps[l]]=pick
+                    y.cand[ID.cand2[these.samps[l]],focal.traps[j],k]=
+                      y.cand[ID.cand2[these.samps[l]],focal.traps[j],k]+1
+                  }
+                  total.log.j.probs.for=total.log.j.probs.for+dmulti(y.cand[,focal.traps[j],k],n.these.samps,prob=propprobs.for,log=TRUE)
+                  total.log.j.probs.back=total.log.j.probs.back+dmulti(y.true[,focal.traps[j],k],n.these.samps,prob=propprobs.back,log=TRUE)
+                  
+                  #update ll.y.cand - only focal traps with samples here
+                  for(i in 1:M){
+                    if(z.cand[i]==1){
+                      if(K2D[focal.traps[j],k]==1){
+                        if(y.cand[i,focal.traps[j],k]==0){
+                          ll.y.cand[i,focal.traps[j],k] = log(1-pd[i,focal.traps[j]])
+                        }else{
+                          #breaking into two because nimble "can't do math with arrays of more than 2 dimensions"
+                          ll.y.cand[i,focal.traps[j],k] = log(pd[i,focal.traps[j]])
+                          ll.y.cand[i,focal.traps[j],k] = ll.y.cand[i,focal.traps[j],k] +
+                            log(dpois(y.cand[i,focal.traps[j],k],lambda=lambda[1])/(1-exp(-lambda[1])))
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            #update focal.i likelihood for all j-k
+            for(j in 1:J){
+              for(k in 1:K){
+                if(K2D[j,k]==1){
+                  if(y.cand[focal.i,j,k]==0){
+                    ll.y.cand[focal.i,j,k] = log(1-pd[focal.i,j])
+                  }else{
+                    ll.y.cand[focal.i,j,k] = log(pd[focal.i,j])
+                    ll.y.cand[focal.i,j,k] = ll.y.cand[focal.i,j,k] +
+                      log(dpois(y.cand[focal.i,j,k],lambda=lambda[1])/(1-exp(-lambda[1])))
+                  }
+                }
+              }
+            }
+          }else{#if we only turn on a z and no local samples to reallocate
+            #update focal.i likelihood for all j-k
+            for(j in 1:J){
+              for(k in 1:K){
+                if(K2D[j,k]==1){
+                  if(y.cand[focal.i,j,k]==0){
+                    ll.y.cand[focal.i,j,k] = log(1-pd[focal.i,j])
+                  }else{
+                    ll.y.cand[focal.i,j,k] = log(pd[focal.i,j])
+                    ll.y.cand[focal.i,j,k] = ll.y.cand[focal.i,j,k] +
+                      log(dpois(y.cand[focal.i,j,k],lambda=lambda[1])/(1-exp(-lambda[1])))
+                  }
+                }
+              }
+            }
+          }
+          
+          ll.z.curr=dbinom(z[focal.i],1,model$psi[1],log=TRUE)
+          ll.z.cand=dbinom(z.cand[focal.i],1,model$psi[1],log=TRUE)
+          
+          z.on=which(z.cand==1)
+          p.select.z.back=1/length(z.on)
+          
+          logforprob=log(p.select.z.for)+total.log.j.probs.for
+          logbackprob=log(p.select.z.back)+total.log.j.probs.back
+          
+          if(n.focal.traps>0){#y likelihood of everyone at focal traps and all traps for focal individual
+            ll.total.curr=ll.z.curr #just summing full y likelihood for ease
+            ll.total.cand=ll.z.cand
+            for(i in 1:M){
+              for(j in 1:J){
+                for(k in 1:K){
+                  ll.total.curr=ll.total.curr+ll.y[i,j,k]
+                  ll.total.cand=ll.total.cand+ll.y.cand[i,j,k]
+                }
+              }
+            }
+          }else{#y likelihood for focal ind only, all traps
+            ll.total.curr=ll.z.curr #just summing full y likelihood for ease
+            ll.total.cand=ll.z.cand
+            for(j in 1:J){
+              for(k in 1:K){
+                ll.total.curr=ll.total.curr+ll.y[focal.i,j,k]
+                ll.total.cand=ll.total.cand+ll.y.cand[focal.i,j,k]
+              }
+            }
+          }
+          
+          log_MH_ratio=(ll.total.cand+logbackprob)-(ll.total.curr+logforprob)
+          accept <- decide(log_MH_ratio)
+          if(accept){
+            if(n.focal.traps>0){
+              for(i in 1:M){
+                for(j in 1:n.focal.traps){
+                  for(k in 1:K){
+                    y.true[i,focal.traps[j],k]=y.cand[i,focal.traps[j],k]
+                    ll.y[i,focal.traps[j],k]=ll.y.cand[i,focal.traps[j],k]
+                  }
+                }
+              }
+              ID.curr2=ID.cand2
+            }
+            for(j in 1:J){
+              for(k in 1:K){
+                ll.y[focal.i,j,k]=ll.y.cand[focal.i,j,k]
+              }
+            }
+            z[focal.i]=z.cand[focal.i]
+          }
+        }
+      }
+      
+      #update model$stuff
+      model$y.true <<- y.true
+      model$ID <<- ID.curr2
+      model$z <<- z
+    }#end joint z-ID update
+    
     model$calculate(calcNodes) #update logprob
     copy(from = model, to = mvSaved, row = 1, nodes = calcNodes, logProb = TRUE)
   },

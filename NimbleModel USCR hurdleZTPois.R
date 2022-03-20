@@ -5,8 +5,8 @@ NimModel <- nimbleCode({
   psi ~ dunif(0,1)
   p0 ~ dunif(0,1)
   lambda ~ dunif(0,10)
-  # sigma ~ dunif(0,100)
-  sigma~dgamma(25,scale=0.02) #informative prior with mean 0.5
+  sigma ~ dunif(0,100) #uninformative prior
+  # sigma~dgamma(25,scale=0.02) #informative prior with mean 0.5
   #--------------------------------------------------------------
   for(i in 1:M){
     z[i] ~ dbern(psi)
