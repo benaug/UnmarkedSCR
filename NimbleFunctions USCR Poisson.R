@@ -127,6 +127,7 @@ IDSampler <- nimbleFunction(
         ID.cand2=ID.curr2
         y.cand=y.true
         ll.y.cand=ll.y
+        lam.cand=lam
         z.on=which(z==1)
         n.z.on=length(z.on)
         if(n.z.on>1){ #Cannot turn off anyone unless there are at least 2 guys on. samples must belong to someone!
@@ -137,6 +138,7 @@ IDSampler <- nimbleFunction(
             focal.i=z.on[1]
           }
           z.cand[focal.i]=0
+          lam.cand[focal.i,]=0
           p.select.z.for=1/n.z.on
           if(local.eval==TRUE){# find local traps with samples
             dists=sqrt((model$s[focal.i,1]-model$X[,1])^2+(model$s[focal.i,2]-model$X[,2])^2)
@@ -154,7 +156,7 @@ IDSampler <- nimbleFunction(
             for(j in 1:n.focal.traps){
               these.samps=which(this.j==focal.traps[j])
               n.these.samps=length(these.samps)
-              propprobs.for=lam[,focal.traps[j]]*z.cand
+              propprobs.for=lam.cand[,focal.traps[j]]*z.cand
               propprobs.back=lam[,focal.traps[j]]*z
               sum.propprobs.for=sum(propprobs.for)
               if(sum.propprobs.for==0){
@@ -175,7 +177,7 @@ IDSampler <- nimbleFunction(
               for(i in 1:M){
                 if(z.cand[i]==1){
                   ll.y.cand[i,focal.traps[j]]=dpois(y.cand[i,focal.traps[j]],
-                                                    K1D[focal.traps[j]]*lam[i,focal.traps[j]],log=TRUE)
+                                                    K1D[focal.traps[j]]*lam.cand[i,focal.traps[j]],log=TRUE)
                 }
               }
             }
@@ -209,6 +211,7 @@ IDSampler <- nimbleFunction(
                 ll.y[,focal.traps]=ll.y.cand[,focal.traps]
                 ID.curr2=ID.cand2
               }
+              lam[focal.i,]=lam.cand[focal.i,]
               ll.y[focal.i,]=ll.y.cand[focal.i,]
               z[focal.i]=z.cand[focal.i]
             }
@@ -220,6 +223,7 @@ IDSampler <- nimbleFunction(
         ID.cand2=ID.curr2
         y.cand=y.true
         ll.y.cand=ll.y
+        lam.cand=lam
         z.off=which(z==0)
         n.z.off=length(z.off)
         if(n.z.off>0){
@@ -239,10 +243,7 @@ IDSampler <- nimbleFunction(
           }else{
             focal.traps=which(j.indicator) #j.indicator removes traps with 0 samples
           }
-          #a little tricky here. lam is all 0 if z=0. If I replace here, it will not be there 
-          #on the next cluster up because I will extract it from model again. So I can not worry about it.
-          #nimble will fill lam[focal.i,] in when we leave this update due to z dependencies.
-          lam[focal.i,]=model$lam0[1]*exp(-dists^2/(2*model$sigma[1]^2))
+          lam.cand[focal.i,]=model$lam0[1]*exp(-dists^2/(2*model$sigma[1]^2))
           total.log.j.probs.for=0
           total.log.j.probs.back=0
           n.focal.traps=length(focal.traps)
@@ -251,7 +252,7 @@ IDSampler <- nimbleFunction(
             for(j in 1:n.focal.traps){
               these.samps=which(this.j==focal.traps[j])
               n.these.samps=length(these.samps)
-              propprobs.for=lam[,focal.traps[j]]*z.cand
+              propprobs.for=lam.cand[,focal.traps[j]]*z.cand
               propprobs.back=lam[,focal.traps[j]]*z
               propprobs.for=propprobs.for/sum(propprobs.for)
               propprobs.back=propprobs.back/sum(propprobs.back)
@@ -267,13 +268,13 @@ IDSampler <- nimbleFunction(
               for(i in 1:M){
                 if(z.cand[i]==1){
                   ll.y.cand[i,focal.traps[j]]=dpois(y.cand[i,focal.traps[j]],
-                                                    K1D[focal.traps[j]]*lam[i,focal.traps[j]],log=TRUE)
+                                                    K1D[focal.traps[j]]*lam.cand[i,focal.traps[j]],log=TRUE)
                 }
               }
             }
-            ll.y.cand[focal.i,]=dpois(y.cand[focal.i,],K1D*lam[focal.i,],log=TRUE)
+            ll.y.cand[focal.i,]=dpois(y.cand[focal.i,],K1D*lam.cand[focal.i,],log=TRUE)
           }else{#if we only turn on a z and no local samples to reallocate
-            ll.y.cand[focal.i,]=dpois(y.cand[focal.i,],K1D*lam[focal.i,],log=TRUE)
+            ll.y.cand[focal.i,]=dpois(y.cand[focal.i,],K1D*lam.cand[focal.i,],log=TRUE)
           }
           ll.z.curr=dbinom(z[focal.i],1,model$psi[1],log=TRUE)
           ll.z.cand=dbinom(z.cand[focal.i],1,model$psi[1],log=TRUE)
@@ -302,6 +303,7 @@ IDSampler <- nimbleFunction(
             }
             ll.y[focal.i,]=ll.y.cand[focal.i,]
             z[focal.i]=z.cand[focal.i]
+            lam[focal.i,]=lam.cand[focal.i,]
           }
         }
       }
@@ -309,7 +311,7 @@ IDSampler <- nimbleFunction(
       #update model$stuff
       model$y.true <<- y.true
       model$ID <<- ID.curr2
-      model$z <<- z
+      model$z <<- z #lam will be updated with calculate below
     }
     #update lp
     model$calculate(calcNodes)

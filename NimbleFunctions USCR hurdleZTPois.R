@@ -235,6 +235,7 @@ IDSampler_jk <- nimbleFunction(
         # select z==1 to turn off
         z.cand=z
         ID.cand2=ID.curr2
+        pd.cand=pd
         y.cand=y.true
         ll.y.cand=ll.y
         z.on=which(z==1)
@@ -247,6 +248,7 @@ IDSampler_jk <- nimbleFunction(
             focal.i=z.on[1]
           }
           z.cand[focal.i]=0
+          pd.cand[focal.i,]=0
           p.select.z.for=1/n.z.on
           if(local.eval==TRUE){# find local traps with samples
             dists=sqrt((model$s[focal.i,1]-model$X[,1])^2+(model$s[focal.i,2]-model$X[,2])^2)
@@ -262,7 +264,7 @@ IDSampler_jk <- nimbleFunction(
           if(n.focal.traps>0){
             # repropose all samples at focal.traps
             for(j in 1:n.focal.traps){
-              propprobs.for=pd[,focal.traps[j]]*z.cand
+              propprobs.for=pd.cand[,focal.traps[j]]*z.cand
               propprobs.back=pd[,focal.traps[j]]*z
               sum.propprobs.for=sum(propprobs.for)
               if(sum.propprobs.for==0){
@@ -291,9 +293,9 @@ IDSampler_jk <- nimbleFunction(
                     if(z.cand[i]==1){
                       if(K2D[focal.traps[j],k]==1){
                         if(y.cand[i,focal.traps[j],k]==0){
-                          ll.y.cand[i,focal.traps[j],k] = log(1-pd[i,focal.traps[j]])
+                          ll.y.cand[i,focal.traps[j],k] = log(1-pd.cand[i,focal.traps[j]])
                         }else{
-                          ll.y.cand[i,focal.traps[j],k] = log(pd[i,focal.traps[j]])
+                          ll.y.cand[i,focal.traps[j],k] = log(pd.cand[i,focal.traps[j]])
                           ll.y.cand[i,focal.traps[j],k] = ll.y.cand[i,focal.traps[j],k] +
                             log(dpois(y.cand[i,focal.traps[j],k],lambda=lambda[1])/(1-exp(-lambda[1])))
                         }
@@ -367,6 +369,7 @@ IDSampler_jk <- nimbleFunction(
                 }
               }
               z[focal.i]=z.cand[focal.i]
+              pd[focal.i,]=pd.cand[focal.i,]
             }
           }
         }
@@ -375,6 +378,7 @@ IDSampler_jk <- nimbleFunction(
         z.cand=z
         ID.cand2=ID.curr2
         y.cand=y.true
+        pd.cand=pd
         ll.y.cand=ll.y
         z.off=which(z==0)
         n.z.off=length(z.off)
@@ -396,17 +400,14 @@ IDSampler_jk <- nimbleFunction(
           }else{
             focal.traps=which(j.indicator) #j.indicator removes traps with 0 samples
           }
-          #a little tricky here. pd is all 0 if z=0. If I replace here, it will not be there
-          #on the next cluster up because I will extract it from model again. So I can not worry about it.
-          #nimble will fill pd[focal.i,] in when we leave this update due to z dependencies.
-          pd[focal.i,]=model$p0[1]*exp(-dists^2/(2*model$sigma[1]^2))
+          pd.cand[focal.i,]=model$p0[1]*exp(-dists^2/(2*model$sigma[1]^2))
           total.log.j.probs.for=0
           total.log.j.probs.back=0
           n.focal.traps=length(focal.traps)
           if(n.focal.traps>0){
             # repropose all samples at focal.traps
             for(j in 1:n.focal.traps){
-              propprobs.for=pd[,focal.traps[j]]*z.cand
+              propprobs.for=pd.cand[,focal.traps[j]]*z.cand
               propprobs.back=pd[,focal.traps[j]]*z
               propprobs.for=propprobs.for/sum(propprobs.for)
               propprobs.back=propprobs.back/sum(propprobs.back)
@@ -431,10 +432,10 @@ IDSampler_jk <- nimbleFunction(
                     if(z.cand[i]==1){
                       if(K2D[focal.traps[j],k]==1){
                         if(y.cand[i,focal.traps[j],k]==0){
-                          ll.y.cand[i,focal.traps[j],k] = log(1-pd[i,focal.traps[j]])
+                          ll.y.cand[i,focal.traps[j],k] = log(1-pd.cand[i,focal.traps[j]])
                         }else{
                           #breaking into two because nimble "can't do math with arrays of more than 2 dimensions"
-                          ll.y.cand[i,focal.traps[j],k] = log(pd[i,focal.traps[j]])
+                          ll.y.cand[i,focal.traps[j],k] = log(pd.cand[i,focal.traps[j]])
                           ll.y.cand[i,focal.traps[j],k] = ll.y.cand[i,focal.traps[j],k] +
                             log(dpois(y.cand[i,focal.traps[j],k],lambda=lambda[1])/(1-exp(-lambda[1])))
                         }
@@ -449,9 +450,9 @@ IDSampler_jk <- nimbleFunction(
               for(k in 1:K){
                 if(K2D[j,k]==1){
                   if(y.cand[focal.i,j,k]==0){
-                    ll.y.cand[focal.i,j,k] = log(1-pd[focal.i,j])
+                    ll.y.cand[focal.i,j,k] = log(1-pd.cand[focal.i,j])
                   }else{
-                    ll.y.cand[focal.i,j,k] = log(pd[focal.i,j])
+                    ll.y.cand[focal.i,j,k] = log(pd.cand[focal.i,j])
                     ll.y.cand[focal.i,j,k] = ll.y.cand[focal.i,j,k] +
                       log(dpois(y.cand[focal.i,j,k],lambda=lambda[1])/(1-exp(-lambda[1])))
                   }
@@ -464,9 +465,9 @@ IDSampler_jk <- nimbleFunction(
               for(k in 1:K){
                 if(K2D[j,k]==1){
                   if(y.cand[focal.i,j,k]==0){
-                    ll.y.cand[focal.i,j,k] = log(1-pd[focal.i,j])
+                    ll.y.cand[focal.i,j,k] = log(1-pd.cand[focal.i,j])
                   }else{
-                    ll.y.cand[focal.i,j,k] = log(pd[focal.i,j])
+                    ll.y.cand[focal.i,j,k] = log(pd.cand[focal.i,j])
                     ll.y.cand[focal.i,j,k] = ll.y.cand[focal.i,j,k] +
                       log(dpois(y.cand[focal.i,j,k],lambda=lambda[1])/(1-exp(-lambda[1])))
                   }
@@ -526,6 +527,7 @@ IDSampler_jk <- nimbleFunction(
               }
             }
             z[focal.i]=z.cand[focal.i]
+            pd[focal.i,]=pd.cand[focal.i,]
           }
         }
       }
@@ -533,7 +535,7 @@ IDSampler_jk <- nimbleFunction(
       #update model$stuff
       model$y.true <<- y.true
       model$ID <<- ID.curr2
-      model$z <<- z
+      model$z <<- z #pd updated due to z dependencies in calcNodes below
     }#end joint z-ID update
     
     model$calculate(calcNodes) #update logprob
