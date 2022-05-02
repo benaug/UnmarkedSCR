@@ -23,7 +23,7 @@ nimbleOptions('MCMCjointlySamplePredictiveBranches')
 N=38
 lam0=0.25
 sigma=0.50
-K=10
+K=5
 buff=3 #state space buffer. Should be at least 3 sigma.
 X<- expand.grid(3:11,3:11)
 obstype="poisson"
@@ -100,7 +100,7 @@ j.indicator=1:J%in%data$this.j
 conf$addSampler(target = paste0("y.true[1:",M,",1:",J,"]"),
                 type = 'IDSampler',control = list(M=M,J=J,this.j=data$this.j,trapup=trapup,
                                                   j.indicator=j.indicator,
-                                                  cluster.ups=0,local.eval=FALSE,swap.rad.multiplier=6),
+                                                  cluster.ups=1,local.eval=FALSE,swap.rad.multiplier=6),
                 silent = TRUE)
 
 
@@ -139,7 +139,7 @@ Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
 
 # Run the model.
 start.time2<-Sys.time()
-Cmcmc$run(25000,reset=FALSE) #short run for demonstration. can keep running this line to get more samples
+Cmcmc$run(5000,reset=FALSE) #short run for demonstration. can keep running this line to get more samples
 end.time<-Sys.time()
 end.time-start.time  # total time for compilation, replacing samplers, and fitting
 end.time-start.time2 # post-compilation run time

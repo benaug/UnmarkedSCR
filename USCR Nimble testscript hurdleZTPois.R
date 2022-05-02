@@ -41,7 +41,7 @@ N=38
 p0=0.25 #baseline detection probability
 lambda=0.25 #count parameter given detection
 sigma=0.50
-K=10
+K=5
 buff=3 #state space buffer. Should be at least 3 sigma.
 X<- expand.grid(3:11,3:11)
 obstype="hurdleZTPois"
