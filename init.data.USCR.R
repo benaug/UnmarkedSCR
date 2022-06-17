@@ -107,9 +107,9 @@ init.data.USCR=function(data=NA,M=NA,inits=inits,obstype="poisson"){
         for(j in 1:J){
           for(k in 1:K){
             if(y.true[i,j,k]==0){
-              ll.y[i,j,k]=log(1-pd[j])
+              ll.y[i,j,k]=log(1-pd[i,j])
             }else{
-              ll.y[i,j,k]=log(pd[j]) + log(dpois(y.true[i,j,k],lambda=lambda)/(1-exp(-lambda)))
+              ll.y[i,j,k]=log(pd[i,j]) + log(dpois(y.true[i,j,k],lambda=lambda)/(1-exp(-lambda)))
             }
           }
         }
