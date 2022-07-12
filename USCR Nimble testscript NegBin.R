@@ -1,7 +1,7 @@
 #Disclaimer:  USCR is a poor density estimator. Adding overdispersion simply makes it even worse!
 #There is probably little or no use for this model except perhaps if one has a strongly informative
-#prior for sigma or if one wants to do a sensitivity analysis to overdispersion for a fixed value
-#of sigma.
+#prior for sigma (and probably other detection parametes) or if one wants to do a sensitivity
+#analysis to overdispersion for a fixed value of sigma.
 
 #Note, the model file is currently using an informative prior for sigma centered around
 #0.5. If you change sigma in the data simulator or apply this to real data, you should
@@ -115,9 +115,9 @@ for(i in 1:M){
 
 
 
-#use block update for p0 and sigma. bc correlated posteriors.
-conf$removeSampler(c("p0","sigma"))
-conf$addSampler(target = c(paste("p0"),paste("sigma")),
+#use block update for lam0 and sigma. bc correlated posteriors.
+conf$removeSampler(c("lam0","sigma"))
+conf$addSampler(target = c(paste("lam0"),paste("sigma")),
                 type = 'AF_slice',control = list(adaptive=TRUE),silent = TRUE)
 
 
