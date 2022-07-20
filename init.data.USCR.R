@@ -62,6 +62,19 @@ init.data.USCR=function(data=NA,M=NA,inits=inits,obstype="poisson"){
       ID[l]=sample(1:M,1,replace=FALSE,prob=propdist)
       y.true[ID[l],this.j[l],this.k[l]]=y.true[ID[l],this.j[l],this.k[l]]+1
     }
+  }else if(obstype=="ramsey"){
+    p0<- inits$p0
+    pd<- p0*exp(-D*D/(2*sigma*sigma))
+    #Build y.true
+    y.true=array(0,dim=c(M,J,K))
+    jk.idx=which(data$y.jk==1,arr.ind=TRUE)
+    n.j.k=nrow(jk.idx)
+    #just allocate 1 individual detection where there was at least 1
+    for(l in 1:n.j.k){
+      propdist=z*pd[,jk.idx[l,1]]
+      this.i=which(propdist==max(propdist))
+      y.true[this.i,jk.idx[l,1],jk.idx[l,2]]=1
+    }
   }
     
   y.true2D=apply(y.true,c(1,2),sum)
@@ -79,7 +92,7 @@ init.data.USCR=function(data=NA,M=NA,inits=inits,obstype="poisson"){
   
   sigma<- inits$sigma
   D=e2dist(s, X)
-  if(obstype=="bernoulli"){
+  if(obstype=="bernoulli"|obstype=="ramsey"){
     p0<- inits$p0
     pd<- p0*exp(-D*D/(2*sigma*sigma))
     ll.y=dbinom(y.true2D,K,pd*z,log=TRUE)
@@ -119,7 +132,11 @@ init.data.USCR=function(data=NA,M=NA,inits=inits,obstype="poisson"){
     stop("obstype not recognized")
   }
   if(!is.finite(sum(ll.y)))stop("Starting obs model likelihood is not finite")
-  
-  return(list(y.true2D=y.true2D,y.true3D=y.true,s=s,z=z,
+  if(obstype!="ramsey"){
+    return(list(y.true2D=y.true2D,y.true3D=y.true,s=s,z=z,
                 ID=ID,n.samples=n.samples,xlim=xlim,ylim=ylim))
+  }else{
+    return(list(y.true2D=y.true2D,y.true3D=y.true,s=s,z=z,
+                jk.idx=jk.idx,xlim=xlim,ylim=ylim))
+  }
 }
