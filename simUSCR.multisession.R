@@ -20,7 +20,12 @@ simUSCR.multisession <-
   function(N.session=NA,lambda=NA,lam0=NA,p0=NA,sigma=NA,theta=NA,
            K=NA,X=NA,buff=NA,obstype="poisson"){
     if(length(lambda)!=N.session)stop("lambda must be of length N.session")
-    if(length(lam0)!=N.session)stop("lam0 must be of length N.session")
+    if(obstype%in%c("poisson","negbin")){
+      if(length(lam0)!=N.session)stop("lam0 must be of length N.session")
+    }
+    if(obstype=="bernoulli"){
+      if(length(p0)!=N.session)stop("lam0 must be of length N.session")
+    }
     if(length(sigma)!=N.session)stop("sigma must be of length N.session")
     if(length(K)!=N.session)stop("K must be of length N.session")
     if(length(X)!=N.session)stop("X must be of length N.session")
@@ -51,7 +56,7 @@ simUSCR.multisession <-
     #simulate sessions one at a time
     data=vector("list",N.session)
     for(g in 1:N.session){
-      data[[g]]=simUSCR(N=N[g],lam0=lam0[g],sigma=sigma[g],K=K[g],X=X[[g]],buff=buff[g],
+      data[[g]]=simUSCR(N=N[g],lam0=lam0[g],p0=p0[g],sigma=sigma[g],K=K[g],X=X[[g]],buff=buff[g],
                         obstype=obstype,theta=theta[g])
     }
     

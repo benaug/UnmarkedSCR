@@ -137,6 +137,6 @@ init.data.USCR=function(data=NA,M=NA,inits=inits,obstype="poisson"){
                 ID=ID,n.samples=n.samples,xlim=xlim,ylim=ylim))
   }else{
     return(list(y.true2D=y.true2D,y.true3D=y.true,s=s,z=z,
-                jk.idx=jk.idx,xlim=xlim,ylim=ylim))
+                jk.idx=jk.idx,xlim=xlim,ylim=ylim,ID=NA))
   }
 }

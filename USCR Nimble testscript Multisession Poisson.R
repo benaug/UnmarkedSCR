@@ -13,9 +13,10 @@ source("NimbleModel USCR Multisession Poisson.R")
 source("NimbleFunctions USCR Multisession Poisson.R")
 source("sSampler Multisession.R")
 
-#make sure to run this line!
-nimble:::setNimbleOption('MCMCjointlySamplePredictiveBranches', FALSE)
-nimbleOptions('MCMCjointlySamplePredictiveBranches') 
+#If using Nimble version 0.13.1 and you must run this line 
+nimbleOptions(determinePredictiveNodesInModel = FALSE)
+# #If using Nimble before version 0.13.1, run this line instead
+# nimble:::setNimbleOption('MCMCjointlySamplePredictiveBranches', FALSE)
 
 ####Simulate some data####
 #Here, I'll simulate 3 populations with different K, X, and state space areas
@@ -98,7 +99,7 @@ conf <- configureMCMC(Rmodel,monitors=parameters, thin=nt, monitors2=parameters2
 ###Three *required* sampler replacements
 
 ##z/N update
-z.ups=c(50,50,50) # how many z proposals per iteration per session?
+z.ups=round(M*0.25) # how many z proposals per iteration per session?
 conf$removeSampler("N")
 for(g in 1:N.session){
   #nodes used for update, calcNodes + z nodes
