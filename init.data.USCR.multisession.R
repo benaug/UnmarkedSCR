@@ -5,7 +5,7 @@ e2dist = function (x, y){
 }
 
 init.data.USCR.multisession=function(data=NA,M=NA,inits=inits,obstype="poisson"){
-  N.session=length(data$y)
+  N.session=nrow(data$this.j)
   if(obstype!="ramsey"){
     n.samples=rowSums(!is.na(data$this.j))
   }else{
