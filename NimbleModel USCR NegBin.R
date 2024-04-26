@@ -2,11 +2,11 @@ NimModel <- nimbleCode({
   #--------------------------------------------------------------
   # priors
   #--------------------------------------------------------------
-  psi~dunif(0,1)
-  lam0~dunif(0,10)
-  theta~dunif(0,25) #careful with this prior. Too much prior mass near 0 gives very strong prior weight to high overdispersion
-  # sigma~dunif(0,100)
-  sigma~dgamma(25,scale=0.02) #informative prior with mean 0.5
+  psi ~ dunif(0,1)
+  lam0 ~ dunif(0,10)
+  theta ~ dunif(0,25) #careful with this prior. Too much prior mass near 0 gives very strong prior weight to high overdispersion
+  # sigma ~ dunif(0,100)
+  sigma ~ dgamma(25,scale=0.02) #informative prior with mean 0.5
   #--------------------------------------------------------------
   for(i in 1:M) {
     z[i] ~ dbern(psi)
