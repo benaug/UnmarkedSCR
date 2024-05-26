@@ -45,8 +45,8 @@ simUSCR <-
         }
       } 
     }else if(obstype=="hurdleZTPois"){
-      if(is.na(p0))stop("must provide p0 for siteUse_ZTpois obstype")
-      if(is.na(lambda))stop("must provide lambda for siteUse_ZTpois obstype")
+      if(is.na(p0))stop("must provide p0 for hurdleZTpois obstype")
+      if(is.na(lambda))stop("must provide lambda for hurdleZTpois obstype")
       library(VGAM)
       pd<- p0*exp(-D*D/(2*sigma*sigma))
       y.det=array(0,dim=c(N,J,K))

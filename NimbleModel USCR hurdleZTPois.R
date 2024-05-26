@@ -18,4 +18,4 @@ NimModel <- nimbleCode({
   capcounts[1:M] <- Getcapcounts(y.true=y.true[1:M,1:J,1:K])
   n <- Getncap(capcounts=capcounts[1:M],ID=ID[1:n.samples])
   N <- sum(z[1:M])
-})#model
+})
