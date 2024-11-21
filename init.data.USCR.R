@@ -134,7 +134,7 @@ init.data.USCR <- function(data=NA,M=NA,inits=inits,obstype="poisson"){
   }
   if(!is.finite(sum(ll.y)))stop("Starting obs model likelihood is not finite")
   if(obstype!="ramsey"){
-    return(list(y.true2D=y.true2D,y.true3D=y.true,s=s,z=z,
+    return(list(y.true2D=y.true2D,y.true3D=y.true,s=s,z=z,this.j=this.j,this.k=this.k,
                 ID=ID,n.samples=n.samples,xlim=xlim,ylim=ylim))
   }else{
     return(list(y.true2D=y.true2D,y.true3D=y.true,s=s,z=z,
