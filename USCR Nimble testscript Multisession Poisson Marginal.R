@@ -147,7 +147,7 @@ mvSamples <- as.matrix(Cmcmc$mvSamples)
 burnin <- 500
 plot(coda::mcmc(mvSamples[-c(1:burnin),]))
 
-#reminder of what some targets rae
+#reminder of what some targets are
 data$N
 data$lambda
 

@@ -48,8 +48,8 @@ sSampler <- nimbleFunction(
     z <- model$z[i]
     if(z==0){ #propose from prior
       model$s[i, 1:2] <<- c(runif(1, xlim[1], xlim[2]), runif(1, ylim[1], ylim[2]))
-      model$calculate(calcNodes)
-      copy(from = model, to = mvSaved, row = 1, nodes = calcNodes, logProb = TRUE)
+      model$calculate(s.nodes)
+      copy(from = model, to = mvSaved, row = 1, nodes = s.nodes, logProb = TRUE)
     }else{ #MH
       s.cand <- c(rnorm(1,model$s[i,1],scale), rnorm(1,model$s[i,2],scale))
       inbox <- s.cand[1]< xlim[2] & s.cand[1]> xlim[1] & s.cand[2] < ylim[2] & s.cand[2] > ylim[1]
