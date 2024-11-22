@@ -2,8 +2,10 @@ sSampler <- nimbleFunction(
   # name = 'sampler_RW',
   contains = sampler_BASE,
   setup = function(model, mvSaved, target, control) {
-    i <- control$i
     g <- control$g
+    i <- control$i
+    J <- control$J
+    res <- control$res
     xlim <- control$xlim
     ylim <- control$ylim
     ## control list extraction
@@ -16,6 +18,10 @@ sSampler <- nimbleFunction(
     ## node list generation
     # targetAsScalar <- model$expandNodeNames(target, returnScalarComponents = TRUE)
     calcNodes <- model$getDependencies(target)
+    s.nodes <- model$expandNodeNames(paste("s[",g,",",i,",",1:2,"]"))
+    lam.nodes <- model$expandNodeNames(paste("lam[",g,",",i,",1:",J,"]"))
+    lam.noID.nodes <- model$expandNodeNames(paste("lam.noID[",g,",1:",J,"]"))
+    y.noID.nodes <- model$expandNodeNames(paste("y.noID[",g,",1:",J,"]"))
     # calcNodesNoSelf <- model$getDependencies(target, self = FALSE)
     # isStochCalcNodesNoSelf <- model$isStoch(calcNodesNoSelf)   ## should be made faster
     # calcNodesNoSelfDeterm <- calcNodesNoSelf[!isStochCalcNodesNoSelf]
@@ -39,20 +45,36 @@ sSampler <- nimbleFunction(
     if(adaptFactorExponent < 0)      stop('cannot use RW sampler with adaptFactorExponent control parameter less than 0')
     if(scale < 0)                    stop('cannot use RW sampler with scale control parameter less than 0')
   },
-  run = function() {
+  run <- function() {
     z <- model$z[g,i]
-    if(z==0){#propose from unifrom prior
-      model$s[g,i, 1:2] <<- c(runif(1, xlim[1], xlim[2]), runif(1, ylim[1], ylim[2]))
+    if(z==0){ #propose from prior
+      model$s[g,i,1:2] <<- c(runif(1, xlim[1], xlim[2]), runif(1, ylim[1], ylim[2]))
       model$calculate(calcNodes)
       copy(from = model, to = mvSaved, row = 1, nodes = calcNodes, logProb = TRUE)
-    }else{#MH
-      s.cand=c(rnorm(1,model$s[g,i,1],scale), rnorm(1,model$s[g,i,2],scale))
-      inbox= s.cand[1]< xlim[2] & s.cand[1]> xlim[1] & s.cand[2] < ylim[2] & s.cand[2] > ylim[1]
+    }else{ #MH
+      s.cand <- c(rnorm(1,model$s[g,i,1],scale), rnorm(1,model$s[g,i,2],scale))
+      inbox <- s.cand[1]< xlim[2] & s.cand[1]> xlim[1] & s.cand[2] < ylim[2] & s.cand[2] > ylim[1]
       if(inbox){
-        model_lp_initial <- model$getLogProb(calcNodes)
+        #get initial logprobs
+        lp_initial_s <- model$getLogProb(s.nodes)
+        lp_initial_y.noID <- model$getLogProb(y.noID.nodes)
+        #pull this out of model object
+        bigLam.initial <- model$bigLam[g,1:J]
+        #update proposed s
         model$s[g,i, 1:2] <<- s.cand
-        model_lp_proposed <- model$calculate(calcNodes)
-        log_MH_ratio <- model_lp_proposed - model_lp_initial
+        lp_proposed_s <- model$calculate(s.nodes) #proposed logprob for s.nodes
+        #subtract these out before calculating lam
+        bigLam.proposed <- bigLam.initial - model$lam[g,i,1:J]
+        model$calculate(lam.nodes) #update lam nodes
+        #add these in after calculating lam
+        bigLam.proposed <- bigLam.proposed + model$lam[g,i,1:J]
+        #put bigLam in model object 
+        model$bigLam[g,1:J] <<- bigLam.proposed
+        model$calculate(lam.noID.nodes) #update lam.noID nodes after bigLam
+        lp_proposed_y.noID <- model$calculate(y.noID.nodes) #get proposed y2 logProb
+        lp_initial <- lp_initial_s + lp_initial_y.noID
+        lp_proposed <- lp_proposed_s + lp_proposed_y.noID
+        log_MH_ratio <- lp_proposed - lp_initial
         accept <- decide(log_MH_ratio)
         if(accept) {
           copy(from = model, to = mvSaved, row = 1, nodes = calcNodes, logProb = TRUE)

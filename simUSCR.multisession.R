@@ -79,7 +79,7 @@ simUSCR.multisession <-
     }
     
     out<-list(this.j=this.j,this.k=this.k, #observed data
-              y=y,s=s, ID=ID,N=N,n=n,#true data
+              y=y,s=s, ID=ID,lambda=lambda,N=N,n=n,#true data
               X=X,K=K,buff=buff,xlim=xlim,ylim=ylim)
     return(out)
   }
