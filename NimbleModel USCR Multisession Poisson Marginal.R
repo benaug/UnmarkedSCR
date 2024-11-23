@@ -19,10 +19,9 @@ NimModel <- nimbleCode({
       s[g,i,2] ~ dunif(ylim[g,1],ylim[g,2])
       lam[g,i,1:J[g]] <- GetDetectionRate(s = s[g,i,1:2], X = X[g,1:J[g],1:2], J=J[g],sigma=sigma[g], lam0=lam0[g], z=z[g,i])
     }
-    for(j in 1:J[g]){
-      bigLam[g,j] <- sum(lam[g,1:M[g],j]*z[g,1:M[g]])
-      lam.noID[g,j] <- bigLam[g,j]*K1D[g,j]
-      y.noID[g,j] ~ dpois(lam.noID[g,j]) #unidentified detections
-    }
+    #this speeds up lam0/sigma updates a bit by skipping z=0 inds
+    bigLam[g,1:J[g]] <- GetbigLam(lam=lam[g,1:M[g],1:J[g]],z=z[g,1:M[g]])
+    lam.noID[g,1:J[g]] <- bigLam[g,1:J[g]]*K1D[g,1:J[g]]
+    y.noID[g,1:J[g]] ~ dPoissonVector(lam.noID[g,1:J[g]],z=1) #plug in z=1 to reuse dPoissonVector
   }
 })

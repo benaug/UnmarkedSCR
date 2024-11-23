@@ -101,8 +101,8 @@ for(g in 1:N.session){
   #nodes used for update, calcNodes + z nodes
   y.noID.nodes <- Rmodel$expandNodeNames(paste("y.noID[",g,",1:",J[g],"]"))
   lam.nodes <- Rmodel$expandNodeNames(paste("lam[",g,",","1:",M[g],",1:",J[g],"]"))
-  bigLam.nodes <- Rmodel$getDependencies(paste("bigLam[",g,",",1:J[g],"]"))#only need this in calcNodes
-  lam.noID.nodes <- Rmodel$getDependencies(paste("lam.noID[",g,",",1:J[g],"]"))
+  bigLam.nodes <- Rmodel$expandNodeNames(paste("bigLam[",g,",",1:J[g],"]"))#only need this in calcNodes
+  lam.noID.nodes <- Rmodel$expandNodeNames(paste("lam.noID[",g,",",1:J[g],"]"))
   N.node <- Rmodel$expandNodeNames(paste("N[",g,"]"))
   z.nodes <- Rmodel$expandNodeNames(paste("z[",g,",","1:",M[g],"]"))
   calcNodes <- c(N.node,lam.nodes,bigLam.nodes,lam.noID.nodes,y.noID.nodes)

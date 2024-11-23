@@ -1,7 +1,7 @@
 #this version uses an alternative data augmentation approach that runs faster and allows a poisson
 #prior on N. Also uses observation model marginalized over individuals with results from Herliansyah et al.
 #(2024) https://link.springer.com/article/10.1007/s13253-023-00598-3
-#Marginal only possible with Poisson detections
+#Marginal only possible with Poisson detections (among count models)
 
 library(nimble)
 library(coda)

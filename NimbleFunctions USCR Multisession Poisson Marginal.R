@@ -1,6 +1,18 @@
-#------------------------------------------------------------------
-# Function for calculation detection rate
-#------------------------------------------------------------------
+GetbigLam <- nimbleFunction(
+  run = function(lam = double(2), z = double(1)){ 
+    returnType(double(1))
+    M <- nimDim(lam)[1]
+    J <- nimDim(lam)[2]
+    bigLam <- rep(0,J)
+    for(i in 1:M){
+      if(z[i]==1){
+        bigLam = bigLam + lam[i,]
+      }
+    }
+    return(bigLam)
+  }
+)
+
 GetDetectionRate <- nimbleFunction(
   run = function(s = double(1), lam0=double(0), sigma=double(0), 
                  X=double(2), J=double(0), z=double(0)){ 
