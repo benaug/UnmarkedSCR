@@ -6,7 +6,7 @@ GetbigLam <- nimbleFunction(
     bigLam <- rep(0,J)
     for(i in 1:M){
       if(z[i]==1){
-        bigLam = bigLam + lam[i,]
+        bigLam <- bigLam + lam[i,]
       }
     }
     return(bigLam)
