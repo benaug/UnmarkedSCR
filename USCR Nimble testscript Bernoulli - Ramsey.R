@@ -16,16 +16,16 @@ nimbleOptions(determinePredictiveNodesInModel = FALSE)
 # nimble:::setNimbleOption('MCMCjointlySamplePredictiveBranches', FALSE)
 
 #simulate some data
-N=38
-p0=0.15 #simulator treats p0 as lam0 for bernoulli obsmod
-sigma=0.50
-K=10
-buff=3 #state space buffer. Should be at least 3 sigma.
-X<- expand.grid(3:12,3:12)
-obstype="bernoulli" #simulate from bernoulli obstype
+N <- 38
+p0 <- 0.15 #simulator treats p0 as lam0 for bernoulli obsmod
+sigma <- 0.50
+K <- 10
+buff <- 3 #state space buffer. Should be at least 3 sigma.
+X <- expand.grid(3:12,3:12)
+obstype <- "bernoulli" #simulate from bernoulli obstype
 
 #Simulate some data
-data=simUSCR(N=N,p0=p0,sigma=sigma,K=K,X=X,buff=buff,obstype=obstype)
+data <- simUSCR(N=N,p0=p0,sigma=sigma,K=K,X=X,buff=buff,obstype=obstype)
 
 #What is the observed data?
 #1) We have occasions and sites for each count member.
@@ -33,34 +33,34 @@ head(data$this.j)
 head(data$this.k)#not used in this sampler for 2D data, but required if using 3D data
 
 #What if we observe even less information? Say only j x k binary data? Like Ramsey et al. (2015)
-y.jk=apply(data$y.true,c(2,3),sum)
-y.jk[y.jk>1]=1
+y.jk <- apply(data$y.true,c(2,3),sum)
+y.jk[y.jk>1] <- 1
 
 #add to data
-data$y.jk=y.jk
+data$y.jk <- y.jk
 
 #Data augmentation level
-M=150
+M <- 150
 
 #trap operation matrix
-J=nrow(X)
-K1D=rep(K,J)
+J <- nrow(X)
+K1D <- rep(K,J)
 
-inits=list(p0=0.25,sigma=0.5,psi=0.5)#initial values for lam0, sigma, and psi to build data
-nimbuild=init.data.USCR(data=data,M=M,inits=inits,obstype="ramsey") #build with ramsey obstype
+inits <- list(p0=0.25,sigma=0.5,psi=0.5)#initial values for lam0, sigma, and psi to build data
+nimbuild <- init.data.USCR(data=data,M=M,inits=inits,obstype="ramsey") #build with ramsey obstype
 
 #inits for nimble
 Niminits <- list(z=nimbuild$z,s=nimbuild$s,y.true2D=nimbuild$y.true2D,p0=inits$p0,sigma=inits$sigma,y.true3D=nimbuild$y.true3D)
 
 #constants for Nimble
-constants<-list(M=M,J=J,K=data$K,K1D=K1D,xlim=nimbuild$xlim,ylim=nimbuild$ylim)
+constants <- list(M=M,J=J,K=data$K,K1D=K1D,xlim=nimbuild$xlim,ylim=nimbuild$ylim)
 
 #supply data to nimble
-Nimdata<-list(z=rep(NA,M),X=as.matrix(data$X))
+Nimdata <- list(z=rep(NA,M),X=as.matrix(data$X))
 
 # set parameters to monitor
 parameters<-c('psi','p0','sigma','N','capcounts')
-nt=1 #thinning rate
+nt <- 1 #thinning rate
 
 
 # Build the model, configure the mcmc, and compile
@@ -109,9 +109,9 @@ Cmodel <- compileNimble(Rmodel)
 Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
 
 # Run the model.
-start.time2<-Sys.time()
+start.time2 <- Sys.time()
 Cmcmc$run(2500,reset=FALSE) #short run for demonstration. can keep running this line to get more samples
-end.time<-Sys.time()
+end.time <- Sys.time()
 end.time-start.time  # total time for compilation, replacing samplers, and fitting
 end.time-start.time2 # post-compilation run time
 
@@ -135,11 +135,11 @@ Nimdata<-list(y.j=rowSums(data$y.jk),z=rep(NA,M),X=as.matrix(data$X))
 
 # set parameters to monitor
 parameters<-c('psi','p0','sigma','N')
-nt=1 #thinning rate
+nt <- 1 #thinning rate
 
 
 # Build the model, configure the mcmc, and compile
-start.time<-Sys.time()
+start.time <- Sys.time()
 Rmodel <- nimbleModel(code=NimModel, constants=constants, data=Nimdata,check=FALSE,
                       inits=Niminits)
 conf <- configureMCMC(Rmodel,monitors=parameters, thin=nt,useConjugacy = TRUE) 
@@ -151,12 +151,12 @@ Cmodel <- compileNimble(Rmodel)
 Cmcmc <- compileNimble(Rmcmc, project = Rmodel)
 
 # Run the model.
-start.time2<-Sys.time()
+start.time2 <- Sys.time()
 Cmcmc$run(5000,reset=FALSE) #short run for demonstration. can keep running this line to get more samples
-end.time<-Sys.time()
+end.time <- Sys.time()
 end.time-start.time  # total time for compilation, replacing samplers, and fitting
 end.time-start.time2 # post-compilation run time
 
-mvSamples2 = as.matrix(Cmcmc$mvSamples)
+mvSamples2 <- as.matrix(Cmcmc$mvSamples)
 plot(mcmc(mvSamples2[2:nrow(mvSamples2),]))
 

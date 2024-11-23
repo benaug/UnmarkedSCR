@@ -47,8 +47,8 @@ dPoissonVector <- nimbleFunction(
 rPoissonVector <- nimbleFunction(
   run = function(n = integer(0),lam = double(1),z = double(0)) {
     returnType(double(1))
-    J=nimDim(lam)[1]
-    out=numeric(J,value=0)
+    J <- nimDim(lam)[1]
+    out <- numeric(J,value=0)
     return(out)
   }
 )

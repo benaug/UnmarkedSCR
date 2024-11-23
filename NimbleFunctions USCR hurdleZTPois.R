@@ -91,9 +91,9 @@ Getncap <- nimbleFunction(
 IDSampler_jk <- nimbleFunction(
   contains = sampler_BASE,
   setup = function(model, mvSaved, target, control) {
-    this.j<-control$this.j
-    this.k<-control$this.k
-    M<-control$M
+    this.j <- control$this.j
+    this.k <- control$this.k
+    M <- control$M
     J <- control$J
     K <- control$K
     j.indicator <- control$j.indicator
@@ -550,10 +550,10 @@ IDSampler_jk <- nimbleFunction(
 # IDSampler <- nimbleFunction(
 #   contains = sampler_BASE,
 #   setup = function(model, mvSaved, target, control) {
-#     this.j<-control$this.j
-#     this.k<-control$this.k
+#     this.j <- control$this.j
+#     this.k <- control$this.k
 #     n.samples <- control$n.samples
-#     M<-control$M
+#     M <- control$M
 #     J <- control$J
 #     K <- control$K
 #     calcNodes <- model$getDependencies(target)

@@ -53,7 +53,6 @@ rPoissonVector <- nimbleFunction(
   }
 )
 
-
 #Required custom update for N/z
 zSampler <- nimbleFunction(
   contains = sampler_BASE,
