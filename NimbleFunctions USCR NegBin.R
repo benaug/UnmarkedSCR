@@ -95,10 +95,9 @@ IDSampler <- nimbleFunction(
       }
     }
     ll.y.cand <- ll.y
-    
+    ID.cand <- ID.curr
+    y.true.cand <- y.true
     for(l in 1:n.samples){#loop over samples
-      ID.cand <- ID.curr
-      y.true.cand <- y.true
       #proposal distribution
       propprobs <- model$lam[1:M,this.j[l]]*z
       sumpropprobs <- sum(propprobs)
@@ -117,10 +116,8 @@ IDSampler <- nimbleFunction(
           ll.y.cand[swapped[1],this.j[l]] <- dnbinom(y.true.cand[swapped[1],this.j[l]],size=model$theta[1]*model$K1D[this.j[l]],prob=model$p[swapped[1],this.j[l]],log=TRUE)
           ll.y.cand[swapped[2],this.j[l]] <- dnbinom(y.true.cand[swapped[2],this.j[l]],size=model$theta[1]*model$K1D[this.j[l]],prob=model$p[swapped[2],this.j[l]],log=TRUE)
           #select sample to move proposal probabilities
-          #P(select a sample for this ID)*P(select this j|this ID)
-          #n.samples cancels out in MH ratio. Including for clarity
-          focalprob <- (sum(ID.curr==swapped[1])/n.samples)*(y.true[swapped[1],this.j[l]])/sum(y.true[swapped[1],1:J])
-          focalbackprob <- (sum(ID.cand==swapped[2])/n.samples)*(y.true.cand[swapped[2],this.j[l]])/sum(y.true.cand[swapped[2],1:J])
+          focalprob <- y.true[ID.curr[l],this.j[l],this.k[l]]/n.samples
+          focalbackprob <- y.true.cand[ID.cand[l],this.j[l],this.k[l]]/n.samples
 
           #sum log likelihoods and do MH step
           lp_initial <- sum(ll.y[swapped,this.j[l]])
@@ -133,6 +130,10 @@ IDSampler <- nimbleFunction(
             ll.y[swapped[1],this.j[l]] <- ll.y.cand[swapped[1],this.j[l]]
             ll.y[swapped[2],this.j[l]] <- ll.y.cand[swapped[2],this.j[l]]
             ID.curr[l] <- ID.cand[l]
+          }else{
+            y.true.cand[swapped[1],this.j[l]] <- y.true[swapped[1],this.j[l]]
+            y.true.cand[swapped[2],this.j[l]] <- y.true[swapped[2],this.j[l]]
+            ID.cand[l] <- ID.curr[l]
           }
         }
       }
