@@ -16,7 +16,8 @@ NimModel <- nimbleCode({
     p[i,1:J] <- theta/(theta+lam[i,1:J])
     y.true[i,1:J] ~ dNBVector(p=p[i,1:J],theta=theta*K1D[1:J],z=z[i]) #vectorized obs mod. trap op: sum of NB RVs is NB with theta=N*theta
   }
-  capcounts[1:M] <- Getcapcounts(y.true=y.true[1:M,1:J])
-  n <- Getncap(capcounts=capcounts[1:M],ID=ID[1:n.samples])
+  #calculate number of inds captured
+  capcounts[1:M] <- Getcapcounts(ID=ID[1:n.samples],M=M) #intermediate object
+  n <- Getncap(capcounts=capcounts[1:M])
   N <- sum(z[1:M])
 })#model

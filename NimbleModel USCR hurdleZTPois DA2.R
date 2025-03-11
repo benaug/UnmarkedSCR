@@ -14,6 +14,7 @@ NimModel <- nimbleCode({
     pd[i,1:J] <- GetDetectionProb(s = s[i,1:2], X = X[1:J,1:2], J=J,sigma=sigma, p0=p0, z=z[i])
     y.true[i,1:J,1:K] ~ dHurdleZTPoisMatrix(pd=pd[i,1:J],K2D=K2D[1:J,1:K],z=z[i],lambda=lambda) #vectorized obs mod
   }
-  capcounts[1:M] <- Getcapcounts(y.true=y.true[1:M,1:J,1:K])
-  n <- Getncap(capcounts=capcounts[1:M],ID=ID[1:n.samples])
+  #calculate number of inds captured
+  capcounts[g,1:M[g]] <- Getcapcounts(ID=ID[g,1:n.samples[g]],M=M[g]) #intermediate object
+  n[g] <- Getncap(capcounts=capcounts[g,1:M[g]])
 })#model

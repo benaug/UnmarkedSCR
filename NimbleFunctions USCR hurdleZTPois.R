@@ -56,20 +56,19 @@ rHurdleZTPoisVector <- nimbleFunction(
 )
 
 Getcapcounts <- nimbleFunction(
-  run = function(y.true=double(3)){
+  run = function(ID=double(1),M=double(0)){
     returnType(double(1))
-    M <- nimDim(y.true)[1]
-    J <- nimDim(y.true)[2]
-    K <- nimDim(y.true)[3]
+    n.samples <- nimDim(ID)[1]
     capcounts <- numeric(M, value = 0)
-    for(i in 1:M){
-      capcounts[i] <- sum(y.true[i,1:J,1:K])
+    for(l in 1:n.samples){
+      capcounts[ID[l]] <- capcounts[ID[l]] + 1
     }
     return(capcounts)
   }
 )
+
 Getncap <- nimbleFunction(
-  run = function(capcounts=double(1),ID=double(1)){ #don't need ID, but nimble requires is it used in a function 
+  run = function(capcounts=double(1)){
     returnType(double(0))
     M <- nimDim(capcounts)[1]
     nstate <- numeric(M, value = 0)
@@ -102,7 +101,7 @@ IDSampler_jk <- nimbleFunction(
     cluster.ups <- control$cluster.ups
     local.eval <- control$local.eval
     swap.rad.multiplier <- control$swap.rad.multiplier
-    calcNodes <- model$getDependencies(c("y.true","z"))
+    calcNodes <- model$getDependencies(c("y.true","z","ID"))
   },
   
   run = function() {
