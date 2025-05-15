@@ -2,6 +2,7 @@
 Various unmarked SCR MCMC samplers in nimble
 
 There are two data augmentation approaches, 1) regular data augmentation as used in the original paper and 2) an alternative that allows a Poisson prior on expected abundance (DA2 in file names). The latter allows faster N/z updates. Multisession versions use DA2.
+This is count prior data augmentation: https://github.com/benaug/SCR-Count-Prior-Data-Augmentation
 
 There are 5 observation models, 1) Poisson, 2) Bernoulli, 3) negative binomial, 4) zero-truncated Poisson hurdle, and 5) Bernoulli-Ramsey. Currently, 3 and 5 are only available with regular data augmentation.
 
